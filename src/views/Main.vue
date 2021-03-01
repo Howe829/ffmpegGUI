@@ -7,6 +7,12 @@
           <span slot="label">
             <i class="el-icon-video-play"></i> 视频
           </span>
+          <div>
+            <label class="text">码率：</label><input class="input" type="text" v-model="biteRate" placeholder="请输入码率" oninput="value=value.replace(/^\.+|[^\d.]/g,'')">
+            <label class="text">帧率：</label><input class="input" type="text" v-model="frameRate" placeholder="请输入帧率" oninput="value=value.replace(/^\.+|[^\d.]/g,'')">
+            <label class="text">分辨率：</label> <input class="input" type="text" v-model="width" placeholder="宽" oninput="value=value.replace(/^\.+|[^\d.]/g,'')">
+            <label class="text">x</label><input class="input" type="text" v-model="height" placeholder="高" oninput="value=value.replace(/^\.+|[^\d.]/g,'')">
+          </div>
           <Entry @updateTypesPath="updateTypesPath" />
         </el-tab-pane>
         <el-tab-pane name="audio">
@@ -79,173 +85,193 @@
 </template>
 
 <script>
-import Entry from "@/components/Entry";
-import Xterm from "@/components/Xterm";
-import ChildProcessFFmpeg from "@/utils/core";
-import AudioSlider from "@/components/AudioSlider";
-import { sec_to_time, getProgress, dateNow, getFilename } from "@/utils/common";
-import { remote } from "electron";
+import Entry from '@/components/Entry'
+import Xterm from '@/components/Xterm'
+import ChildProcessFFmpeg from '@/utils/core'
+import AudioSlider from '@/components/AudioSlider'
+import { sec_to_time, getProgress, dateNow, getFilename } from '@/utils/common'
+import { remote } from 'electron'
 
-const ffmpeg = new ChildProcessFFmpeg();
+const ffmpeg = new ChildProcessFFmpeg()
 
 export default {
-  data() {
+  data () {
     return {
-      entry: "",
-      output: "",
-      activeTab: "video",
-      audioPath: "",
+      entry: '',
+      output: '',
+      activeTab: 'video',
+      audioPath: '',
       progress: 0,
       duration: 0,
       cutAudioMarks: {},
-      cutAudioValue: [0, 0]
-    };
+      cutAudioValue: [0, 0],
+      biteRate: 1000,
+      frameRate: 16,
+      height: 960,
+      width: 540
+    }
   },
   methods: {
+    // 获取用户输入的帧率以及码率
+    getVideoConverterParams () {
+      this.biteRate = parseInt(this.biteRate)
+      this.frameRate = parseInt(this.frameRate)
+      this.height = parseInt(this.height)
+      this.width = parseInt(this.width)
+    },
     //  获取用户选择文件的路径
-    updateTypesPath(path, name) {
-      if (name === "audio") {
-        this.audioPath = path;
+    updateTypesPath (path, name) {
+      if (name === 'audio') {
+        this.audioPath = path
       } else {
-        this.entry = path;
+        this.entry = path
       }
     },
     // 切换 tabs
-    handleClick(tab, event) {
-      this.cutAudioValue = [0, 0];
-      this.cutAudioMarks = {};
+    handleClick (tab, event) {
+      this.cutAudioValue = [0, 0]
+      this.cutAudioMarks = {}
     },
     // 选择保存路经
-    savePath() {
+    savePath () {
       return new Promise((resolve, reject) => {
         remote.dialog.showOpenDialog(
           {
-            buttonLabel: "保存",
-            properties: ["openDirectory"]
+            buttonLabel: '保存',
+            properties: ['openDirectory']
           },
           filename => {
             if (filename) {
-              this.output = filename[0];
-              resolve(filename[0]);
+              this.output = filename[0]
+              resolve(filename[0])
             } else {
-              reject("用户取消");
+              reject('用户取消')
             }
           }
-        );
-      });
+        )
+      })
     },
     // 准备转码
-    startCommand() {
-      if (this.activeTab == "merge") {
-        if (this.entry === "") {
-          this.msg("视频路径为空", "warning");
-          return;
+    startCommand () {
+      if (this.activeTab == 'merge') {
+        if (this.entry === '') {
+          this.msg('视频路径为空', 'warning')
+          return
         }
-        if (this.audioPath === "") {
-          this.msg("音频路径为空", "warning");
-          return;
+        if (this.audioPath === '') {
+          this.msg('音频路径为空', 'warning')
+          return
         }
       } else {
-        if (this.entry === "") {
-          this.msg("视频或者路径为空", "warning");
-          return;
+        if (this.entry === '') {
+          this.msg('视频或者路径为空', 'warning')
+          return
         }
       }
+      this.getVideoConverterParams()
       switch (this.activeTab) {
-        case "video":
-          this.startConversion("convertVideo", "mp4");
-          break;
-        case "audio":
-          this.startConversion("convertAudio", "mp3");
-          break;
-        case "cutAudio":
-          this.startConversion("convertCutAudio", "mp3", this.cutAudioValue);
-          break;
-        case "cutVideo":
-          this.startConversion("convertCutVideo", "mp4", this.cutAudioValue);
-          break;
-        case "merge":
-          this.startConversion("convertMerge", "mp4");
-          break;
-        case "gif":
-          this.startConversion("convertGIF", "gif", [0, 5]);
-          break;
-        case "customize":
-          this.customizeStartConversion(this.customize);
-          break;
+        case 'video':
+          this.startConversion('convertVideo', 'mp4')
+          break
+        case 'audio':
+          this.startConversion('convertAudio', 'mp3')
+          break
+        case 'cutAudio':
+          this.startConversion('convertCutAudio', 'mp3', this.cutAudioValue)
+          break
+        case 'cutVideo':
+          this.startConversion('convertCutVideo', 'mp4', this.cutAudioValue)
+          break
+        case 'merge':
+          this.startConversion('convertMerge', 'mp4')
+          break
+        case 'gif':
+          this.startConversion('convertGIF', 'gif', [0, 5])
+          break
+        case 'customize':
+          this.customizeStartConversion(this.customize)
+          break
         default:
-          this.startConversion("convertVideo", "mp4");
-          break;
+          this.startConversion('convertVideo', 'mp4')
+          break
       }
     },
     // 开始转码
-    async startConversion(command, format, time) {
+    async startConversion (command, format, time) {
       try {
-        await this.savePath();
+        await this.savePath()
       } catch (error) {
-        console.log(error);
-        return;
+        console.log(error)
+        return
       }
-      let inputPath = {};
+      let inputPath = {}
       switch (command) {
-        case "convertMerge":
-          inputPath = { videoPath: this.entry, aidioPath: this.audioPath };
-          break;
+        case 'convertMerge':
+          inputPath = { videoPath: this.entry, aidioPath: this.audioPath }
+          break
         default:
-          inputPath = this.entry;
-          break;
+          inputPath = this.entry
+          break
       }
       let params = {
         inputPath,
         outputPath: this.output,
+        biteRate: this.biteRate,
+        frameRate: this.frameRate,
+        height: this.height,
+        width: this.width,
         onProgress: this.onProgress,
         command,
         format,
         time
-      };
-      ffmpeg.convert({ ...params });
+      }
+      ffmpeg.convert({ ...params })
     },
-    customizeStartConversion(commandLine) {
+    customizeStartConversion (commandLine) {
       let params = {
         onProgress: this.onProgress,
         commandLine
-      };
-      ffmpeg.customize({ ...params });
+      }
+      ffmpeg.customize({ ...params })
     },
     // 消息通知
-    msg(msg, type) {
+    msg (msg, type) {
       this.$message({
         message: msg,
         type
-      });
+      })
     },
     // 读取媒体元数据
-    getMediaInfo(media) {
+    getMediaInfo (media) {
       ffmpeg.getMediaInfo(media).then(it => {
-        let { duration } = it;
-        console.log(it);
-        this.duration = duration;
-        this.cutAudioValue = [0, duration];
+        let { duration, bit_rate, fps, height, width } = it
+        console.log(it)
+        this.duration = duration
+        this.biteRate = bit_rate
+        this.frameRate = fps
+        this.width = width
+        this.height = height
+        this.cutAudioValue = [0, duration]
         this.cutAudioMarks = {
-          0: "0:00:00",
-          [duration]: sec_to_time(duration) + ""
-        };
-      });
+          0: '0:00:00',
+          [duration]: sec_to_time(duration) + ''
+        }
+      })
     },
     // 进度条
-    onProgress(data) {
-      this.progress = +data;
+    onProgress (data) {
+      this.progress = +data
     },
     // 停止转码
-    stopCommand() {
-      ffmpeg.stop();
-      this.progress = 0;
+    stopCommand () {
+      ffmpeg.stop()
+      this.progress = 0
     }
   },
   watch: {
-    entry(newVal, oldVal) {
+    entry (newVal, oldVal) {
       if (newVal) {
-        this.getMediaInfo(newVal);
+        this.getMediaInfo(newVal)
       }
     }
   },
@@ -254,7 +280,7 @@ export default {
     Xterm,
     Entry
   }
-};
+}
 </script>
 
 <style>
@@ -283,5 +309,12 @@ export default {
 .footer {
   text-align: center;
   margin-top: 20px;
+}
+.text{
+  font-size: 10px;
+}
+.input{
+  width: 50px;
+  text-align: center;
 }
 </style>

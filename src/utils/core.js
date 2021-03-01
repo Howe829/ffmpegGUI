@@ -109,14 +109,21 @@ class ChildProcessFFmpeg {
   */
   // convert Video
   // ffmpeg -i test.webm -vcodec h264_videotoolbox -b:v 1744.5k test.mp4
-  convertVideo({ inputPath, outputPath, format }) {
+  convertVideo({ inputPath, outputPath, biteRate, frameRate, height, width, format }) {
     return [
       "-i",
       inputPath,
       "-vcodec",
-      this.vcodec,
+      "h264_videotoolbox",
       "-b:v",
-      this.metaData.bit_rate,
+      `${biteRate}k`,
+      "-r",
+      frameRate,
+      "-strict",
+      "-2",
+      "-s",
+      `${width}x${height}`,
+
       this.outputPathGenerate(outputPath, format)
     ];
   }
